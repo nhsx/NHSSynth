@@ -183,11 +183,12 @@ class MetaTransformer:
             working_data = column_metadata.missingness_strategy.remove(working_data, column_metadata)
         return working_data
 
-    # def apply_constraints(self) -> pd.DataFrame:
-    #     working_data = self.post_missingness_strategy_dataset.copy()
-    #     for constraint in self._metadata.constraints:
-    #         working_data = constraint.apply(working_data)
-    #     return working_data
+    def apply_constraints(self) -> pd.DataFrame:
+        working_data = self.post_missingness_strategy_dataset.copy()
+        for constraint in self._metadata.constraints:
+            working_data = constraint.apply(working_data)
+            constraint
+        return working_data
 
     def _get_missingness_carrier(self, column_metadata: MetaData.ColumnMetaData) -> Union[pd.Series, Any]:
         """
@@ -255,7 +256,7 @@ class MetaTransformer:
         self.drop_columns()
         self.typed_dataset = self.apply_dtypes(self._raw_dataset)
         self.post_missingness_strategy_dataset = self.apply_missingness_strategy()
-        # self.constrained_dataset = self.apply_constraints()
+        self.constrained_dataset = self.apply_constraints()
         self.transformed_dataset = self.transform()
         return self.transformed_dataset
 

@@ -79,6 +79,7 @@ class ClusterContinuousTransformer(ColumnTransformer):
             full_index = data.index
             data = data[missingness_column == 0]
         index = data.index
+        data = data.fillna(0)
         data = np.array(data.values.reshape(-1, 1), dtype=data.dtype.name.lower())
 
         with warnings.catch_warnings():
