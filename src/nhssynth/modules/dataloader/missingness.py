@@ -87,7 +87,7 @@ class ImputeMissingnessStrategy(GenericMissingnessStrategy):
             self.imputation_value = self.impute
         self.imputation_value = column_metadata.dtype.type(self.imputation_value)
         try:
-            data[column_metadata.name] = data[column_metadata.name].fillna(self.imputation_value)
+            data[column_metadata.name].fillna(self.imputation_value, inplace=True)
         except AssertionError:
             raise ValueError(f"Could not impute '{self.imputation_value}' into column: '{column_metadata.name}'.")
         return data

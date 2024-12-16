@@ -256,7 +256,7 @@ class MetaTransformer:
         self.drop_columns()
         self.typed_dataset = self.apply_dtypes(self._raw_dataset)
         self.post_missingness_strategy_dataset = self.apply_missingness_strategy()
-        # self.constrained_dataset = self.apply_constraints()
+        self.constrained_dataset = self.apply_constraints()
         self.transformed_dataset = self.transform()
         return self.transformed_dataset
 
