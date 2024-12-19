@@ -133,7 +133,7 @@ class MetaTransformer:
         dtype = column_metadata.dtype
         try:
             if dtype.kind == "M":
-                working_column = pd.to_datetime(working_column, format=column_metadata.datetime_config.get("format"))
+                working_column = pd.to_datetime(working_column, format=column_metadata.datetime_config.get("format"), errors='coerce')
                 if column_metadata.datetime_config.get("floor"):
                     working_column = working_column.dt.floor(column_metadata.datetime_config.get("floor"))
                     column_metadata.datetime_config["format"] = column_metadata._infer_datetime_format(working_column)
@@ -186,8 +186,7 @@ class MetaTransformer:
     def apply_constraints(self) -> pd.DataFrame:
         working_data = self.post_missingness_strategy_dataset.copy()
         for constraint in self._metadata.constraints:
-            working_data = constraint.apply(working_data)
-            constraint
+            working_data = constraint.transform(working_data)
         return working_data
 
     def _get_missingness_carrier(self, column_metadata: MetaData.ColumnMetaData) -> Union[pd.Series, Any]:
@@ -207,7 +206,14 @@ class MetaTransformer:
             return self.post_missingness_strategy_dataset[missingness_carrier]
         else:
             return missingness_carrier
+        
+    def _get_adherence_constraint(self, df) -> Union[pd.Series, Any]:
 
+        adherence_columns = [col for col in df.columns if col.endswith('_adherence')]
+        constraint_adherence = df[adherence_columns].prod(axis=1).astype(int) 
+
+        return constraint_adherence
+        
     def transform(self) -> pd.DataFrame:
         """
         Prepares the dataset by applying each of the columns' transformers and recording the indices of the single and multi columns.
@@ -219,15 +225,16 @@ class MetaTransformer:
         self.single_column_indices = []
         self.multi_column_indices = []
         col_counter = 0
-        working_data = self.post_missingness_strategy_dataset.copy()
+        working_data = self.constrained_dataset.copy()
 
         # iteratively build the transformed df
         for column_metadata in tqdm(
             self._metadata, desc="Transforming data", unit="column", total=len(self._metadata.columns)
         ):
             missingness_carrier = self._get_missingness_carrier(column_metadata)
+            constraint_adherence = self._get_adherence_constraint(working_data)
             transformed_data = column_metadata.transformer.apply(
-                working_data[column_metadata.name], missingness_carrier
+                working_data[column_metadata.name], constraint_adherence, missingness_carrier
             )
             transformed_columns.append(transformed_data)
 

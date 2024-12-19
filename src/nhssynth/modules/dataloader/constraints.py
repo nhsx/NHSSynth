@@ -48,10 +48,7 @@ class ConstraintGraph:
             # Ensure that the base column exists in the DataFrame
             if self.base not in df.columns:
                 raise ValueError(f"Column '{self.base}' not found in DataFrame.")
-            print(self.base)
-            print(self.reference)
-            print(self.operator)
-            print(self.reference_is_column)
+
             # Handle float-based constraints (e.g., columnA > 10)
             if not self.reference_is_column:
                 reference = float(self.reference)

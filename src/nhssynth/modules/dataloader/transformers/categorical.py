@@ -31,23 +31,55 @@ class OHECategoricalTransformer(ColumnTransformer):
         self._transformer: OneHotEncoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False, drop=self._drop)
         self.missing_value: Any = None
 
-    def apply(self, data: pd.Series, missing_value: Optional[Any] = None) -> pd.DataFrame:
+    def apply(self, data: pd.Series, constraint_adherence: Optional[pd.Series], missing_value: Optional[Any] = None) -> pd.DataFrame:
         """
-        Apply the transformer to the data via sklearn's `OneHotEncoder`'s `fit_transform` method. Name the new columns via manipulation of the original column name.
-        If `missing_value` is provided, fill missing values with this value before applying the transformer to ensure a new category is added.
+        Applies a transformation to the input data using scikit-learn's `OneHotEncoder`'s `fit_transform` method.
+        
+        This method transforms the input data (`data`) into one-hot encoded format. If a `missing_value` is provided, missing values are replaced 
+        with the specified value before the transformation is applied. The transformation is further filtered based on the provided 
+        `constraint_adherence` Series, which determines which rows are included in the transformation process (only rows where the value in 
+        `constraint_adherence` is `1` are retained).
+        
+        The resulting transformed data includes the one-hot encoded columns for the original data, with the constraint adherence values 
+        appended as an additional column. If a column labeled `0` is created (which may happen in certain transformations), it is dropped.
 
         Args:
-            data: The column of data to transform.
-            missing_value: The value learned by the `MetaTransformer` to represent missingness, this is only used as part of the `AugmentMissingnessStrategy`.
+            data (pd.Series): The input column of data to be transformed. The data is expected to be a single column to which the transformation will be applied.
+            
+            constraint_adherence (Optional[pd.Series]): A Series indicating whether each row should be included in the transformation. 
+                Rows corresponding to `1` will be included, and rows corresponding to `0` will be excluded.
+            
+            missing_value (Optional[Any]): The value used to replace missing values (`NaN`) in the `data` before applying the transformation. 
+                This is primarily used for the `AugmentMissingnessStrategy` to ensure that missing values are treated as a specific category.
+        
+        Returns:
+            pd.DataFrame: A DataFrame containing the transformed data. The DataFrame consists of:
+                - One-hot encoded columns based on the original data, with each column corresponding to a unique category.
+                - The `constraint_adherence` column, indicating whether the row satisfies the user-defined constraints (values of `1` or `0`).
+        
+        Notes:
+            - If `missing_value` is provided, missing values in the `data` column are replaced with the specified value before the transformation.
+            - Only rows where `constraint_adherence == 1` will be included in the transformed data.
+            - Any columns with the header `0` (which can occur in some transformations) will be dropped.
+            - The method ensures that the transformed data maintains the original index (`semi_index`) and properly aligns with the input data.
         """
+
         self.original_column_name = data.name
-        if missing_value:
+        if missing_value is not None:
             data = data.fillna(missing_value)
             self.missing_value = missing_value
+        semi_index = data.index
+  
+        data = data[constraint_adherence == 1]
         transformed_data = pd.DataFrame(
             self._transformer.fit_transform(data.values.reshape(-1, 1)),
             columns=self._transformer.get_feature_names_out(input_features=[data.name]),
         )
+        transformed_data = pd.concat([transformed_data.reindex(semi_index).fillna(0.0), constraint_adherence], axis=1)
+
+        if 0 in transformed_data.columns:
+            transformed_data = transformed_data.drop(columns=[0])
+            
         self.new_column_names = transformed_data.columns
         return transformed_data
 

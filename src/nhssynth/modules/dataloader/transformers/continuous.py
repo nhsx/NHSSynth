@@ -58,26 +58,50 @@ class ClusterContinuousTransformer(ColumnTransformer):
         self.remove_unused_components = remove_unused_components
         self.clip_output = clip_output
 
-    def apply(self, data: pd.Series, missingness_column: Optional[pd.Series] = None) -> pd.DataFrame:
+    def apply(self, data: pd.Series, constraint_adherence: Optional[pd.Series], missingness_column: Optional[pd.Series] = None) -> pd.DataFrame:
         """
-        Apply the transformer to the data via sklearn's `BayesianGaussianMixture`'s `fit` and `predict_proba` methods.
-        Name the new columns via the original column name.
+        Apply the transformation to a given data column using the `BayesianGaussianMixture` model from scikit-learn.
 
-        If `missingness_column` is provided, use this to extract the non-missing data; the missing values are assigned to a new pseudo-cluster with mean 0
-        (i.e. all values in the normalised column are 0.0). We do this by taking the full index before subsetting to non-missing data, then reindexing.
+        This method transforms the input data (`data`) by fitting a `BayesianGaussianMixture` model to the data, and normalizes the values based on the 
+        learned parameters. Additionally, it handles missing data by utilizing the provided `missingness_column` and `constraint_adherence` to determine
+        which rows should be included in the transformation. The resulting transformed data consists of the normalized values, along with component 
+        probabilities, and a final adherence column indicating whether the data satisfies the constraints.
+
+        If the `missingness_column` is provided, missing values are handled by assigning them to a new pseudo-cluster with a mean of 0, ensuring that 
+        missing data does not affect the transformation process. Missing values are filled with zeros, and the column names are updated accordingly.
 
         Args:
-            data: The column of data to transform.
-            missingness_column: The column of data representing missingness, this is only used as part of the `AugmentMissingnessStrategy`.
+            data (pd.Series): The input column of data to be transformed. This column is used to fit the `BayesianGaussianMixture` model.
+            
+            constraint_adherence (Optional[pd.Series]): A series indicating whether each row satisfies the user-defined constraints. Only rows where
+                the value in `constraint_adherence` is 1 are included in the transformation process.
+            
+            missingness_column (Optional[pd.Series]): A series indicating missing values. If provided, missing values will be assigned to a pseudo-cluster 
+                with mean 0. The missing values are handled separately to ensure that they don't interfere with the transformation.
 
         Returns:
-            The transformed data (will be multiple columns if `n_components` > 1 at initialisation).
+            pd.DataFrame: A DataFrame containing the transformed data with the following columns:
+                - `<original_column_name>_normalised`: The normalized version of the input data.
+                - `<original_column_name>_c1`, ..., `<original_column_name>_cn`: Columns representing the component probabilities, where `n` is the 
+                number of components in the `BayesianGaussianMixture` model.
+                - The `constraint_adherence` column, which contains 1s and 0s indicating whether each row adheres to the user-defined constraints.
+        
+        Notes:
+            - The method uses the `fit` and `predict_proba` methods of `BayesianGaussianMixture` to fit the model and calculate component probabilities.
+            - If the `missingness_column` is provided, rows with missing values will be handled separately by assigning them to a pseudo-cluster with mean 0.
+            - The transformed data will only include rows where the corresponding value in `constraint_adherence` is 1.
+            - If `self.remove_unused_components` is set to `True`, any components that do not have any data assigned to them will be removed from the result.
+            - The final output DataFrame will have integer types for the component columns and will fill missing values with 0 where necessary.
         """
         self.original_column_name = data.name
         if missingness_column is not None:
             self._missingness_column_name = missingness_column.name
             full_index = data.index
             data = data[missingness_column == 0]
+            # Align constraint_adherence with the filtered data
+            constraint_adherence = constraint_adherence[missingness_column == 0]
+        semi_index = data.index
+        data = data[constraint_adherence == 1]
         index = data.index
         data = data.fillna(0)
         data = np.array(data.values.reshape(-1, 1), dtype=data.dtype.name.lower())
@@ -94,14 +118,14 @@ class ClusterContinuousTransformer(ColumnTransformer):
         normalised = normalised_values[np.arange(len(data)), components]
         normalised = np.clip(normalised, -1.0, 1.0)
         components = np.eye(self._n_components, dtype=int)[components]
-
+        
         transformed_data = pd.DataFrame(
             np.hstack([normalised.reshape(-1, 1), components]),
             index=index,
             columns=[f"{self.original_column_name}_normalised"]
             + [f"{self.original_column_name}_c{i + 1}" for i in range(self._n_components)],
         )
-
+        
         # EXPERIMENTAL feature, removing components from the column matrix that have no data assigned to them
         if self.remove_unused_components:
             nunique = transformed_data.iloc[:, 1:].nunique(dropna=False)
@@ -111,9 +135,14 @@ class ClusterContinuousTransformer(ColumnTransformer):
             self.stds = np.delete(self.stds, unused_component_idx)
             transformed_data.drop(unused_components, axis=1, inplace=True)
 
+        transformed_data = pd.concat([transformed_data.reindex(semi_index).fillna(0.0), constraint_adherence], axis=1)
+
         if missingness_column is not None:
             transformed_data = pd.concat([transformed_data.reindex(full_index).fillna(0.0), missingness_column], axis=1)
 
+        if 0 in transformed_data.columns:
+            transformed_data = transformed_data.drop(columns=[0])
+            
         self.new_column_names = transformed_data.columns
         return transformed_data.astype(
             {col_name: int for col_name in transformed_data.columns if re.search(r"_c\d+", col_name)}
