@@ -10,12 +10,13 @@ class ConstraintGraph:
     POSITIVITY_TO_OPERATOR: Final = {"positive": ">", "nonnegative": ">=", "negative": "<", "nonpositive": "<="}
     BRACKET_TO_OPERATOR: Final = {"[": ">=", "]": "<=", "(": ">", ")": "<"}
     OPERATOR_TO_PANDAS: Final = {"<": pd.Series.lt, "<=": pd.Series.le, ">": pd.Series.gt, ">=": pd.Series.ge}
+
     class Constraint:
         VALID_OPERATORS: Final = [">", ">=", "<", "<=", "in"]
         POSITIVITY_TO_OPERATOR: Final = {"positive": ">", "nonnegative": ">=", "negative": "<", "nonpositive": "<="}
         BRACKET_TO_OPERATOR: Final = {"[": ">=", "]": "<=", "(": ">", ")": "<"}
         OPERATOR_TO_PANDAS: Final = {"<": pd.Series.lt, "<=": pd.Series.le, ">": pd.Series.gt, ">=": pd.Series.ge}
-    
+
         def __init__(
             self,
             base: str,
@@ -41,7 +42,7 @@ class ConstraintGraph:
                 and self.reference == other.reference
                 and self.reference_is_column == other.reference_is_column
             )
-            
+
         def transform(self, df):
             # Ensure that the base column exists in the DataFrame
             if self.base not in df.columns:
@@ -50,7 +51,7 @@ class ConstraintGraph:
             # Handle float-based constraints (e.g., columnA > 10)
             if not self.reference_is_column:
                 reference = float(self.reference)
-                adherence = self.OPERATOR_TO_PANDAS[self.operator](df[self.base], reference)               
+                adherence = self.OPERATOR_TO_PANDAS[self.operator](df[self.base], reference)
             else:
                 # Handle column-to-column constraints (e.g., columnB <= columnC)
                 reference = df[self.reference]
@@ -61,15 +62,11 @@ class ConstraintGraph:
 
             # Optionally calculate and store the difference for rows that don't meet the constraint
             # This is useful for identifying the "degree" to which the constraint is violated
-           # diff = np.abs(df[self.base] - self.reference)
-          #  diff[~adherence] = np.nan  # Set diff to NaN where adherence is False
-          #  df[self.base + "_diff"] = diff
+            # diff = np.abs(df[self.base] - self.reference)
+            #  diff[~adherence] = np.nan  # Set diff to NaN where adherence is False
+            #  df[self.base + "_diff"] = diff
 
             return df
-
-
-
-
 
     class ComboConstraint:
         def __init__(self, columns: list[str]):
@@ -265,10 +262,10 @@ class ConstraintGraph:
             ref_is_col, operator = True, ">"
             if subgraph.edges[item1, item2]["color"] == "green":
                 operator += "="
-            if subgraph.nodes[item1]["color"] == "red": # Note: this breaks if two none col constraints are the same!
+            if subgraph.nodes[item1]["color"] == "red":  # Note: this breaks if two none col constraints are the same!
                 item1, item2 = item2, item1
                 ref_is_col, operator = False, operator.replace(">", "<")
-            if subgraph.nodes[item2]["color"] == "red": # Note: this breaks if two none col constraints are the same!
+            if subgraph.nodes[item2]["color"] == "red":  # Note: this breaks if two none col constraints are the same!
                 ref_is_col = False
             constraint = self.Constraint(item1, operator, item2, reference_is_column=ref_is_col)
             if constraint not in constraints:
@@ -317,7 +314,7 @@ class ConstraintGraph:
         html = net.generate_html(notebook=False)
         with open(str(name).replace(".html", "_minimal.html"), "w") as f:
             f.write(html)
-            
+
     def __iter__(self):
         """
         Make the ConstraintGraph iterable over the minimal_constraints.

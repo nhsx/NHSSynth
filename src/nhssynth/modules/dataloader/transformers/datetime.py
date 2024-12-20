@@ -26,7 +26,13 @@ class DatetimeTransformer(TransformerWrapper):
     def __init__(self, transformer: ColumnTransformer) -> None:
         super().__init__(transformer)
 
-    def apply(self, data: pd.Series, constraint_adherence: Optional[pd.Series], missingness_column: Optional[pd.Series] = None, **kwargs) -> pd.DataFrame:
+    def apply(
+        self,
+        data: pd.Series,
+        constraint_adherence: Optional[pd.Series],
+        missingness_column: Optional[pd.Series] = None,
+        **kwargs
+    ) -> pd.DataFrame:
         """
         Firstly, the datetime data is floored to the nano-second level. Next, the floored data is converted to float nanoseconds since the epoch.
         The float value of `pd.NaT` under the operation above is then replaced with `np.nan` to ensure missing values are represented correctly.

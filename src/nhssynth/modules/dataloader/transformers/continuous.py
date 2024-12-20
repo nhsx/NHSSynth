@@ -58,34 +58,36 @@ class ClusterContinuousTransformer(ColumnTransformer):
         self.remove_unused_components = remove_unused_components
         self.clip_output = clip_output
 
-    def apply(self, data: pd.Series, constraint_adherence: Optional[pd.Series], missingness_column: Optional[pd.Series] = None) -> pd.DataFrame:
+    def apply(
+        self, data: pd.Series, constraint_adherence: Optional[pd.Series], missingness_column: Optional[pd.Series] = None
+    ) -> pd.DataFrame:
         """
         Apply the transformation to a given data column using the `BayesianGaussianMixture` model from scikit-learn.
 
-        This method transforms the input data (`data`) by fitting a `BayesianGaussianMixture` model to the data, and normalizes the values based on the 
+        This method transforms the input data (`data`) by fitting a `BayesianGaussianMixture` model to the data, and normalizes the values based on the
         learned parameters. Additionally, it handles missing data by utilizing the provided `missingness_column` and `constraint_adherence` to determine
-        which rows should be included in the transformation. The resulting transformed data consists of the normalized values, along with component 
+        which rows should be included in the transformation. The resulting transformed data consists of the normalized values, along with component
         probabilities, and a final adherence column indicating whether the data satisfies the constraints.
 
-        If the `missingness_column` is provided, missing values are handled by assigning them to a new pseudo-cluster with a mean of 0, ensuring that 
+        If the `missingness_column` is provided, missing values are handled by assigning them to a new pseudo-cluster with a mean of 0, ensuring that
         missing data does not affect the transformation process. Missing values are filled with zeros, and the column names are updated accordingly.
 
         Args:
             data (pd.Series): The input column of data to be transformed. This column is used to fit the `BayesianGaussianMixture` model.
-            
+
             constraint_adherence (Optional[pd.Series]): A series indicating whether each row satisfies the user-defined constraints. Only rows where
                 the value in `constraint_adherence` is 1 are included in the transformation process.
-            
-            missingness_column (Optional[pd.Series]): A series indicating missing values. If provided, missing values will be assigned to a pseudo-cluster 
+
+            missingness_column (Optional[pd.Series]): A series indicating missing values. If provided, missing values will be assigned to a pseudo-cluster
                 with mean 0. The missing values are handled separately to ensure that they don't interfere with the transformation.
 
         Returns:
             pd.DataFrame: A DataFrame containing the transformed data with the following columns:
                 - `<original_column_name>_normalised`: The normalized version of the input data.
-                - `<original_column_name>_c1`, ..., `<original_column_name>_cn`: Columns representing the component probabilities, where `n` is the 
+                - `<original_column_name>_c1`, ..., `<original_column_name>_cn`: Columns representing the component probabilities, where `n` is the
                 number of components in the `BayesianGaussianMixture` model.
                 - The `constraint_adherence` column, which contains 1s and 0s indicating whether each row adheres to the user-defined constraints.
-        
+
         Notes:
             - The method uses the `fit` and `predict_proba` methods of `BayesianGaussianMixture` to fit the model and calculate component probabilities.
             - If the `missingness_column` is provided, rows with missing values will be handled separately by assigning them to a pseudo-cluster with mean 0.
@@ -120,8 +122,7 @@ class ClusterContinuousTransformer(ColumnTransformer):
         normalised = np.clip(normalised, -1.0, 1.0)
         print(normalised)
         components = np.eye(self._n_components, dtype=int)[components]
-   
-        
+
         transformed_data = pd.DataFrame(
             np.hstack([normalised.reshape(-1, 1), components]),
             index=index,
@@ -130,14 +131,14 @@ class ClusterContinuousTransformer(ColumnTransformer):
         )
         print(transformed_data)
         # EXPERIMENTAL feature, removing components from the column matrix that have no data assigned to them
-        '''if self.remove_unused_components:
+        """if self.remove_unused_components:
             nunique = transformed_data.iloc[:, 1:].nunique(dropna=False)
             unused_components = nunique[nunique == 1].index
             unused_component_idx = [transformed_data.columns.get_loc(col_name) - 1 for col_name in unused_components]
             self.means = np.delete(self.means, unused_component_idx)
             self.stds = np.delete(self.stds, unused_component_idx)
             transformed_data.drop(unused_components, axis=1, inplace=True)
-        '''
+        """
 
         transformed_data = pd.concat([transformed_data.reindex(semi_index).fillna(0.0), constraint_adherence], axis=1)
 
@@ -146,7 +147,7 @@ class ClusterContinuousTransformer(ColumnTransformer):
 
         if 0 in transformed_data.columns:
             transformed_data = transformed_data.drop(columns=[0])
-            
+
         self.new_column_names = transformed_data.columns
         return transformed_data.astype(
             {col_name: int for col_name in transformed_data.columns if re.search(r"_c\d+", col_name)}

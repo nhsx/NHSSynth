@@ -133,7 +133,9 @@ class MetaTransformer:
         dtype = column_metadata.dtype
         try:
             if dtype.kind == "M":
-                working_column = pd.to_datetime(working_column, format=column_metadata.datetime_config.get("format"), errors='coerce')
+                working_column = pd.to_datetime(
+                    working_column, format=column_metadata.datetime_config.get("format"), errors="coerce"
+                )
                 if column_metadata.datetime_config.get("floor"):
                     working_column = working_column.dt.floor(column_metadata.datetime_config.get("floor"))
                     column_metadata.datetime_config["format"] = column_metadata._infer_datetime_format(working_column)
@@ -206,14 +208,14 @@ class MetaTransformer:
             return self.post_missingness_strategy_dataset[missingness_carrier]
         else:
             return missingness_carrier
-        
+
     def _get_adherence_constraint(self, df) -> Union[pd.Series, Any]:
 
-        adherence_columns = [col for col in df.columns if col.endswith('_adherence')]
-        constraint_adherence = df[adherence_columns].prod(axis=1).astype(int) 
+        adherence_columns = [col for col in df.columns if col.endswith("_adherence")]
+        constraint_adherence = df[adherence_columns].prod(axis=1).astype(int)
 
         return constraint_adherence
-        
+
     def transform(self) -> pd.DataFrame:
         """
         Prepares the dataset by applying each of the columns' transformers and recording the indices of the single and multi columns.
