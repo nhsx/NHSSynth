@@ -80,12 +80,12 @@ line-length = 120
 
 [tool.ruff]
 include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
-select = ["E4", "E7", "E9", "F", "C90", "I"]
+lint.select = ["E4", "E7", "E9", "F", "C90", "I"]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "src/nhssynth/common/constants.py" = ["F403", "F405"]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["nhssynth"]
 
 [tool.pytest.ini_options]

@@ -1,7 +1,6 @@
 from typing import Final, Optional, Union
 
 import networkx as nx
-import numpy as np
 import pandas as pd
 from pyvis.network import Network
 
@@ -44,7 +43,6 @@ class ConstraintGraph:
             )
             
         def transform(self, df):
-            base = df[self.base]
             # Ensure that the base column exists in the DataFrame
             if self.base not in df.columns:
                 raise ValueError(f"Column '{self.base}' not found in DataFrame.")
