@@ -34,8 +34,8 @@ class ClusterContinuousTransformer(ColumnTransformer):
 
     def __init__(
         self,
-        n_components: int = 10,
-        n_init: int = 1,
+        n_components: int = 3,
+        n_init: int = 10,
         init_params: str = "kmeans",
         random_state: int = 0,
         max_iter: int = 1000,
@@ -115,9 +115,12 @@ class ClusterContinuousTransformer(ColumnTransformer):
 
         components = np.argmax(self._transformer.predict_proba(data), axis=1)
         normalised_values = (data - self.means.reshape(1, -1)) / (self._std_multiplier * self.stds.reshape(1, -1))
+        print(normalised_values)
         normalised = normalised_values[np.arange(len(data)), components]
         normalised = np.clip(normalised, -1.0, 1.0)
+        print(normalised)
         components = np.eye(self._n_components, dtype=int)[components]
+   
         
         transformed_data = pd.DataFrame(
             np.hstack([normalised.reshape(-1, 1), components]),
@@ -125,15 +128,16 @@ class ClusterContinuousTransformer(ColumnTransformer):
             columns=[f"{self.original_column_name}_normalised"]
             + [f"{self.original_column_name}_c{i + 1}" for i in range(self._n_components)],
         )
-        
+        print(transformed_data)
         # EXPERIMENTAL feature, removing components from the column matrix that have no data assigned to them
-        if self.remove_unused_components:
+        '''if self.remove_unused_components:
             nunique = transformed_data.iloc[:, 1:].nunique(dropna=False)
             unused_components = nunique[nunique == 1].index
             unused_component_idx = [transformed_data.columns.get_loc(col_name) - 1 for col_name in unused_components]
             self.means = np.delete(self.means, unused_component_idx)
             self.stds = np.delete(self.stds, unused_component_idx)
             transformed_data.drop(unused_components, axis=1, inplace=True)
+        '''
 
         transformed_data = pd.concat([transformed_data.reindex(semi_index).fillna(0.0), constraint_adherence], axis=1)
 
